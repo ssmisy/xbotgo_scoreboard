@@ -3,7 +3,7 @@
 <html class=""><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><script>(function(firebaseConfig, initialAuthToken, appId) {
         window.__firebase_config = firebaseConfig;
         window.__initial_auth_token = initialAuthToken;
-        window.__app_id = appId;
+        window.__app_id = appI
             })("\n{\n  \"apiKey\": \"AIzaSyCqyCcs2R2e7AegGjvFAwG98wlamtbHvZY\",\n  \"authDomain\": \"bard-frontend.firebaseapp.com\",\n  \"projectId\": \"bard-frontend\",\n  \"storageBucket\": \"bard-frontend.firebasestorage.app\",\n  \"messagingSenderId\": \"175205271074\",\n  \"appId\": \"1:175205271074:web:2b7bd4d34d33bf38e6ec7b\"\n}\n","eyJhbGciOiJSUzI1NiIsImtpZCI6ImY3ZjVhMTg0YTgyMWRjYTVmMDBlY2M0NDBmZGE3NGZmMjA4N2NkM2MiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0BiYXJkLWZyb250ZW5kLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwiYXVkIjoiaHR0cHM6Ly9pZGVudGl0eXRvb2xraXQuZ29vZ2xlYXBpcy5jb20vZ29vZ2xlLmlkZW50aXR5LmlkZW50aXR5dG9vbGtpdC52MS5JZGVudGl0eVRvb2xraXQiLCJ1aWQiOiIwNTkyMjE2MTY3NzUxODg1MjU4MyIsImlzcyI6ImZpcmViYXNlLWFkbWluc2RrLWZic3ZjQGJhcmQtZnJvbnRlbmQuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJjbGFpbXMiOnsiYXBwSWQiOiJjXzU1OGQwNWM0ODY1MmM4YThfc2NvcmVib2FyZF9wcm90b3R5cGVzLmpzeC0xNCJ9LCJleHAiOjE3NzM5MTcyNzUsImlhdCI6MTc3MzkxMzY3NSwiYWxnIjoiUlMyNTYifQ.d8FnZ7Gj7zC3Kz2T6H7b14Hmfaj4XSf8CT538MRoLxZQcr64KXmwMkxxjz65i_TQfRh-dIOKzVPAMnHzPplw7EGRuFMtXMMM43IF_H6a6cplwPFIr-h9j6jaZZ9XNpAEwJ77vMJPFQIEaRxvVLkewXdNw_ejcK6vEAohev97_mpA-bl0rVQDMRtZqO5xTFN1d7Me5vilLybqyg6I2d3KnCWX31yU29tYf8Qf9lobmH0vlt6eOdgl2Y0rLThQL_bT7apCE8sA27qTtLKtue4PEoyEouajpqnShFkayH7Nzcbp9Ozc3OhynkdlFxREN9bLlO_Tch91UqzHku87vvYrZg","c_558d05c48652c8a8_scoreboard_prototypes.jsx-14")</script><script>(function(){'use strict';var h=typeof Object.defineProperties=="function"?Object.defineProperty:function(a,b,d){if(a==Array.prototype||a==Object.prototype)return a;a[b]=d.value;return a};function l(a){a=["object"==typeof globalThis&&globalThis,a,"object"==typeof window&&window,"object"==typeof self&&self,"object"==typeof global&&global];for(var b=0;b<a.length;++b){var d=a[b];if(d&&d.Math==Math)return d}throw Error("Cannot find global object");}var n=l(this);
 function p(a,b){if(b)a:{var d=n;a=a.split(".");for(var c=0;c<a.length-1;c++){var e=a[c];if(!(e in d))break a;d=d[e]}a=a[a.length-1];c=d[a];b=b(c);b!=c&&b!=null&&h(d,a,{configurable:!0,writable:!0,value:b})}}function r(a){function b(c){return a.next(c)}function d(c){return a.throw(c)}return new Promise(function(c,e){function f(g){g.done?c(g.value):Promise.resolve(g.value).then(b,d).then(f,e)}f(a.next())})}function t(a){return r(a())}
 p("Object.values",function(a){return a?a:function(b){var d=[],c;for(c in b)Object.prototype.hasOwnProperty.call(b,c)&&d.push(b[c]);return d}});p("Array.prototype.includes",function(a){return a?a:function(b,d){var c=this;c instanceof String&&(c=String(c));var e=c.length;d=d||0;for(d<0&&(d=Math.max(d+e,0));d<e;d++){var f=c[d];if(f===b||Object.is(f,b))return!0}return!1}});/*
@@ -810,6 +810,194 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     },
                 },
             }
+        </script>
+        
+        <script>
+            (function () {
+                if (window.__scoreboardWizardInit) return;
+                window.__scoreboardWizardInit = true;
+
+                function getPhoneFrames() {
+                    // Each phone frame uses these exact Tailwind classes.
+                    // CSS escaping for brackets is required in querySelector.
+                    return Array.from(document.querySelectorAll('#root .w-\\[375px\\].h-\\[812px\\]'));
+                }
+
+                function pickLabel(frame, fallback) {
+                    // The label is a small dark pill at the top (e.g. Step 1 / Setup A).
+                    var pill = frame && frame.querySelector && frame.querySelector('span.bg-slate-800');
+                    var t = (pill && (pill.textContent || '').trim()) || '';
+                    return t || fallback;
+                }
+
+                function initWizard() {
+                    var frames = getPhoneFrames();
+                    if (!frames || frames.length < 2) return false;
+
+                    var labels = frames.map(function (f, i) { return pickLabel(f, 'Step ' + (i + 1)); });
+
+                    // Center the visible frame and avoid horizontal scrolling while using the wizard.
+                    var wrapper = frames[0].closest && frames[0].closest('.min-h-screen');
+                    if (wrapper) {
+                        wrapper.style.overflowX = 'hidden';
+                        wrapper.style.gap = '0px';
+                        wrapper.style.justifyContent = 'center';
+                    }
+
+                    var current = 0;
+
+                    var controlBar = document.createElement('div');
+                    controlBar.setAttribute('id', 'scoreboard-wizard-controls');
+                    controlBar.style.position = 'fixed';
+                    controlBar.style.left = '50%';
+                    controlBar.style.bottom = '16px';
+                    controlBar.style.transform = 'translateX(-50%)';
+                    controlBar.style.zIndex = '999999';
+                    controlBar.style.display = 'flex';
+                    controlBar.style.alignItems = 'center';
+                    controlBar.style.gap = '12px';
+                    controlBar.style.padding = '10px 14px';
+                    controlBar.style.background = 'rgba(255,255,255,0.92)';
+                    controlBar.style.backdropFilter = 'blur(10px)';
+                    controlBar.style.border = '1px solid rgba(148,163,184,0.35)';
+                    controlBar.style.borderRadius = '9999px';
+                    controlBar.style.boxShadow = '0 10px 30px rgba(0,0,0,0.12)';
+                    controlBar.style.userSelect = 'none';
+
+                    var prevBtn = document.createElement('button');
+                    prevBtn.textContent = '上一步';
+                    prevBtn.type = 'button';
+                    prevBtn.style.border = '0';
+                    prevBtn.style.background = 'transparent';
+                    prevBtn.style.color = '#0f172a';
+                    prevBtn.style.fontWeight = '700';
+                    prevBtn.style.padding = '6px 10px';
+                    prevBtn.style.borderRadius = '9999px';
+                    prevBtn.style.cursor = 'pointer';
+
+                    var labelWrap = document.createElement('div');
+                    labelWrap.style.minWidth = '90px';
+                    labelWrap.style.textAlign = 'center';
+                    labelWrap.style.color = '#334155';
+                    labelWrap.style.fontWeight = '800';
+                    labelWrap.style.fontSize = '12px';
+
+                    var labelEl = document.createElement('div');
+                    labelEl.textContent = labels[current] || ('Step ' + (current + 1));
+                    labelWrap.appendChild(labelEl);
+
+                    var nextBtn = document.createElement('button');
+                    nextBtn.textContent = '下一步';
+                    nextBtn.type = 'button';
+                    nextBtn.style.border = '0';
+                    nextBtn.style.background = 'transparent';
+                    nextBtn.style.color = '#0f172a';
+                    nextBtn.style.fontWeight = '700';
+                    nextBtn.style.padding = '6px 10px';
+                    nextBtn.style.borderRadius = '9999px';
+                    nextBtn.style.cursor = 'pointer';
+
+                    controlBar.appendChild(prevBtn);
+                    controlBar.appendChild(labelWrap);
+                    controlBar.appendChild(nextBtn);
+                    document.body.appendChild(controlBar);
+
+                    function setButtonDisabled(btn, disabled) {
+                        btn.disabled = !!disabled;
+                        btn.style.opacity = disabled ? '0.45' : '1';
+                        btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+                    }
+
+                    function render() {
+                        frames.forEach(function (f, i) {
+                            f.style.display = i === current ? '' : 'none';
+                        });
+                        labelEl.textContent = labels[current] || ('Step ' + (current + 1));
+                        setButtonDisabled(prevBtn, current <= 0);
+                        setButtonDisabled(nextBtn, current >= frames.length - 1);
+                    }
+
+                    function go(nextIndex) {
+                        var ni = Math.max(0, Math.min(frames.length - 1, nextIndex));
+                        if (ni === current) return;
+                        current = ni;
+                        render();
+                    }
+
+                    prevBtn.addEventListener('click', function () { go(current - 1); });
+                    nextBtn.addEventListener('click', function () { go(current + 1); });
+
+                    // Click delegation inside #root: try to match your existing "下一步/继续设置规则" buttons.
+                    document.getElementById('root').addEventListener('click', function (e) {
+                        var t = e.target;
+                        if (!t || !t.closest) return;
+
+                        // Back (left chevron).
+                        if (t.closest('.lucide-chevron-left') || t.closest('svg.lucide-chevron-left')) {
+                            if (current > 0) go(current - 1);
+                            return;
+                        }
+
+                        var withinCurrentFrame = frames[current] && frames[current].contains(t);
+                        if (!withinCurrentFrame) return;
+
+                        var btn = t.closest('button');
+                        var txt = (btn && btn.textContent || '').trim();
+
+                        // Step 1 -> Step 2: either shooting model button.
+                        if (current === 0 && txt) {
+                            if (txt.indexOf('原追踪模型') !== -1 || txt.indexOf('新追踪模型') !== -1) {
+                                go(1);
+                                return;
+                            }
+                        }
+
+                        // Step 2 -> Setup A
+                        if (current === 1 && txt && txt.indexOf('下一步：计分牌设置') !== -1) {
+                            go(2);
+                            return;
+                        }
+
+                        // Setup A -> Setup B ("继续设置规则" is currently a div/banner).
+                        if (current === 2) {
+                            var banner = t.closest('div');
+                            var bannerText = (banner && banner.textContent || '').trim();
+                            if (bannerText && bannerText.indexOf('继续设置规则') !== -1) {
+                                go(3);
+                                return;
+                            }
+                        }
+
+                        // Setup B final actions: keep on last step (optional).
+                        if (current === 3 && txt) {
+                            if (txt.indexOf('开启计分牌') !== -1 || txt.indexOf('不使用计分牌') !== -1) {
+                                // You can replace this with "开始计分牌并拍摄" logic later.
+                                return;
+                            }
+                        }
+                    });
+
+                    // Keyboard navigation (left/right).
+                    document.addEventListener('keydown', function (e) {
+                        if (e.key === 'ArrowLeft') go(current - 1);
+                        if (e.key === 'ArrowRight') go(current + 1);
+                    });
+
+                    render();
+                    return true;
+                }
+
+                var tries = 0;
+                var timer = setInterval(function () {
+                    tries++;
+                    try {
+                        if (initWizard()) clearInterval(timer);
+                    } catch (err) {
+                        // Keep retrying; the DOM might not be ready yet.
+                    }
+                    if (tries > 40) clearInterval(timer);
+                }, 100);
+            })();
         </script>
 
         <!-- Load React only -->
