@@ -817,10 +817,26 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 if (window.__scoreboardWizardInit) return;
                 window.__scoreboardWizardInit = true;
 
-                function getPhoneFrames() {
+                function getStepWrappers() {
                     // Each phone frame uses these exact Tailwind classes.
                     // CSS escaping for brackets is required in querySelector.
-                    return Array.from(document.querySelectorAll('#root .w-\\[375px\\].h-\\[812px\\]'));
+                    var frames = Array.from(document.querySelectorAll('#root .w-\\[375px\\].h-\\[812px\\]'));
+                    if (frames.length === 0) {
+                        // Fallback if class-name escaping fails for some reason.
+                        frames = Array.from(document.querySelectorAll('#root [class*="w-[375px]"][class*="h-[812px]"]'));
+                    }
+                    // Hide the whole Step wrapper so labels + spacing don't remain.
+                    var wrappers = frames.map(function (f) {
+                        return f.closest('div.flex.flex-col.items-center.shrink-0') || f;
+                    });
+                    // De-duplicate (defensive).
+                    var seen = new Set();
+                    return wrappers.filter(function (w) {
+                        if (!w) return false;
+                        if (seen.has(w)) return false;
+                        seen.add(w);
+                        return true;
+                    });
                 }
 
                 function pickLabel(frame, fallback) {
@@ -831,21 +847,82 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 }
 
                 function initWizard() {
-                    var frames = getPhoneFrames();
-                    if (!frames || frames.length < 2) return false;
+                    var framesAll = getStepWrappers();
+                    if (!framesAll || framesAll.length < 2) return false;
 
-                    var labels = frames.map(function (f, i) { return pickLabel(f, 'Step ' + (i + 1)); });
+                    var labelsAll = framesAll.map(function (f, i) { return pickLabel(f, 'Step ' + (i + 1)); });
 
-                    // Center the visible frame and avoid horizontal scrolling while using the wizard.
-                    var wrapper = frames[0].closest && frames[0].closest('.min-h-screen');
+                    var step2Index = labelsAll.findIndex(function (l) {
+                        return (l || '').indexOf('Step 2') !== -1 || (l || '').indexOf('拍摄准备') !== -1;
+                    });
+                    var setupAIndex = labelsAll.findIndex(function (l) { return (l || '').indexOf('Setup A') !== -1; });
+                    var setupBIndex = labelsAll.findIndex(function (l) { return (l || '').indexOf('Setup B') !== -1; });
+
+                    var step2Wrapper = step2Index >= 0 ? framesAll[step2Index] : framesAll[0];
+                    var setupAWrapper = setupAIndex >= 0 ? framesAll[setupAIndex] : (framesAll[1] || step2Wrapper);
+                    var setupBWrapper = setupBIndex >= 0 ? framesAll[setupBIndex] : null;
+
+                    var step2Phone = step2Wrapper.querySelector('div.w-\\[375px\\].h-\\[812px\\]');
+                    if (!step2Phone) return false;
+
+                    // Hide the outer header (Step 1/Step 2/Setup A) so the phone doesn't "jump".
+                    // The real titles are inside the phone content.
+                    var outerHeader = step2Wrapper.querySelector('div.mb-4');
+                    if (outerHeader) outerHeader.style.display = 'none';
+
+                    // Merge Setup A + Setup B into a single scrollable phone page.
+                    var scoringPhoneHTML = null;
+                    try {
+                        if (setupAWrapper && setupBWrapper) {
+                            var setupAPhone = setupAWrapper.querySelector('div.w-\\[375px\\].h-\\[812px\\]');
+                            var setupBPhone = setupBWrapper.querySelector('div.w-\\[375px\\].h-\\[812px\\]');
+                            var contentA = setupAPhone && setupAPhone.querySelector('div.flex-1.flex.flex-col.overflow-hidden');
+                            var contentB = setupBPhone && setupBPhone.querySelector('div.flex-1.flex.flex-col.overflow-hidden');
+
+                            if (contentA && contentB) {
+                                // Make merged content scrollable.
+                                contentA.style.overflowY = 'auto';
+                                contentA.style.webkitOverflowScrolling = 'touch';
+                                contentA.style.paddingBottom = '120px';
+
+                                // Append B content under A content.
+                                while (contentB.firstChild) contentA.appendChild(contentB.firstChild);
+                            }
+
+                            scoringPhoneHTML = setupAPhone ? setupAPhone.innerHTML : null;
+                        }
+                    } catch (e) {
+                        scoringPhoneHTML = null;
+                    }
+
+                    // Only keep one phone wrapper visible: the Step 2 wrapper.
+                    framesAll.forEach(function (w) {
+                        if (!w) return;
+                        w.style.display = (w === step2Wrapper) ? '' : 'none';
+                    });
+
+                    // Center the visible frame and avoid horizontal scrolling.
+                    var wrapper = step2Wrapper.closest && step2Wrapper.closest('.min-h-screen');
                     if (wrapper) {
                         wrapper.style.overflowX = 'hidden';
                         wrapper.style.gap = '0px';
                         wrapper.style.justifyContent = 'center';
                     }
 
-                    var current = 0;
+                    var step2PhoneOriginalHTML = step2Phone.innerHTML;
 
+                    function applyScrollStyles(phone) {
+                        var scroller = phone.querySelector('div.flex-1.flex.flex-col.overflow-hidden');
+                        if (scroller) {
+                            scroller.style.overflowY = 'auto';
+                            scroller.style.webkitOverflowScrolling = 'touch';
+                            scroller.style.paddingBottom = '120px';
+                        }
+                    }
+
+                    var state = 'motion'; // motion -> scoring
+
+                    // Controls: only switch between motion and scoring (phone stays in place).
                     var controlBar = document.createElement('div');
                     controlBar.setAttribute('id', 'scoreboard-wizard-controls');
                     controlBar.style.position = 'fixed';
@@ -876,14 +953,14 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     prevBtn.style.cursor = 'pointer';
 
                     var labelWrap = document.createElement('div');
-                    labelWrap.style.minWidth = '90px';
+                    labelWrap.style.minWidth = '120px';
                     labelWrap.style.textAlign = 'center';
                     labelWrap.style.color = '#334155';
                     labelWrap.style.fontWeight = '800';
                     labelWrap.style.fontSize = '12px';
 
                     var labelEl = document.createElement('div');
-                    labelEl.textContent = labels[current] || ('Step ' + (current + 1));
+                    labelEl.textContent = '运动模式';
                     labelWrap.appendChild(labelEl);
 
                     var nextBtn = document.createElement('button');
@@ -909,80 +986,104 @@ if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     }
 
                     function render() {
-                        frames.forEach(function (f, i) {
-                            f.style.display = i === current ? '' : 'none';
-                        });
-                        labelEl.textContent = labels[current] || ('Step ' + (current + 1));
-                        setButtonDisabled(prevBtn, current <= 0);
-                        setButtonDisabled(nextBtn, current >= frames.length - 1);
+                        if (state === 'motion') {
+                            step2Phone.innerHTML = step2PhoneOriginalHTML;
+                            applyScrollStyles(step2Phone);
+                            labelEl.textContent = '运动模式';
+                        } else {
+                            if (!scoringPhoneHTML) return;
+                            step2Phone.innerHTML = scoringPhoneHTML;
+                            applyScrollStyles(step2Phone);
+                            labelEl.textContent = '计分牌设置';
+                            // Reset to top of the internal scroller for consistent UX.
+                            var scroller = step2Phone.querySelector('div.flex-1.flex.flex-col.overflow-hidden');
+                            if (scroller) scroller.scrollTop = 0;
+                        }
+
+                        setButtonDisabled(prevBtn, state === 'motion');
+                        setButtonDisabled(nextBtn, state !== 'motion');
                     }
 
-                    function go(nextIndex) {
-                        var ni = Math.max(0, Math.min(frames.length - 1, nextIndex));
-                        if (ni === current) return;
-                        current = ni;
+                    prevBtn.addEventListener('click', function () {
+                        state = 'motion';
                         render();
-                    }
+                    });
+                    nextBtn.addEventListener('click', function () {
+                        if (state === 'motion') {
+                            state = 'scoring';
+                            render();
+                        }
+                    });
 
-                    prevBtn.addEventListener('click', function () { go(current - 1); });
-                    nextBtn.addEventListener('click', function () { go(current + 1); });
-
-                    // Click delegation inside #root: try to match your existing "下一步/继续设置规则" buttons.
+                    // Internal click handling:
+                    // 1) In motion screen: tap "下一步：计分牌设置" -> switch content.
+                    // 2) In scoring screen: tap "继续设置规则" -> scroll within the same phone.
                     document.getElementById('root').addEventListener('click', function (e) {
                         var t = e.target;
                         if (!t || !t.closest) return;
 
-                        // Back (left chevron).
-                        if (t.closest('.lucide-chevron-left') || t.closest('svg.lucide-chevron-left')) {
-                            if (current > 0) go(current - 1);
+                        // Allow "back chevron" to go to motion (if present).
+                        if (t.closest('svg.lucide-chevron-left') || t.closest('.lucide-chevron-left')) {
+                            if (state === 'scoring') {
+                                state = 'motion';
+                                render();
+                            }
                             return;
                         }
-
-                        var withinCurrentFrame = frames[current] && frames[current].contains(t);
-                        if (!withinCurrentFrame) return;
 
                         var btn = t.closest('button');
                         var txt = (btn && btn.textContent || '').trim();
 
-                        // Step 1 -> Step 2: either shooting model button.
-                        if (current === 0 && txt) {
-                            if (txt.indexOf('原追踪模型') !== -1 || txt.indexOf('新追踪模型') !== -1) {
-                                go(1);
-                                return;
+                        if (state === 'motion') {
+                            if (txt.indexOf('下一步：计分牌设置') !== -1) {
+                                state = 'scoring';
+                                render();
                             }
-                        }
-
-                        // Step 2 -> Setup A
-                        if (current === 1 && txt && txt.indexOf('下一步：计分牌设置') !== -1) {
-                            go(2);
                             return;
                         }
 
-                        // Setup A -> Setup B ("继续设置规则" is currently a div/banner).
-                        if (current === 2) {
-                            var banner = t.closest('div');
-                            var bannerText = (banner && banner.textContent || '').trim();
-                            if (bannerText && bannerText.indexOf('继续设置规则') !== -1) {
-                                go(3);
-                                return;
-                            }
-                        }
+                        if (state === 'scoring') {
+                            // Scroll CTA
+                            var nearDiv = t.closest && t.closest('div');
+                            var nearText = (nearDiv && nearDiv.textContent) ? nearDiv.textContent : '';
+                            if (txt.indexOf('继续设置规则') !== -1 || (t.textContent || '').trim().indexOf('继续设置规则') !== -1 || nearText.indexOf('继续设置规则') !== -1) {
+                                var scroller = step2Phone.querySelector('div.flex-1.flex.flex-col.overflow-hidden');
+                                var targetEl = null;
+                                var candidates = step2Phone.querySelectorAll('h1');
+                                for (var i = 0; i < candidates.length; i++) {
+                                    var c = candidates[i];
+                                    if ((c.textContent || '').indexOf('规则与预览') !== -1) {
+                                        targetEl = c;
+                                        break;
+                                    }
+                                }
 
-                        // Setup B final actions: keep on last step (optional).
-                        if (current === 3 && txt) {
-                            if (txt.indexOf('开启计分牌') !== -1 || txt.indexOf('不使用计分牌') !== -1) {
-                                // You can replace this with "开始计分牌并拍摄" logic later.
-                                return;
+                                if (targetEl && scroller) {
+                                    // Try native smooth scroll first.
+                                    try {
+                                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    } catch (err) {
+                                        scroller.scrollTop = targetEl.offsetTop;
+                                    }
+                                }
                             }
                         }
                     });
 
-                    // Keyboard navigation (left/right).
+                    // Keyboard navigation (optional): left = back, right = next.
                     document.addEventListener('keydown', function (e) {
-                        if (e.key === 'ArrowLeft') go(current - 1);
-                        if (e.key === 'ArrowRight') go(current + 1);
+                        if (e.key === 'ArrowLeft' && state === 'scoring') {
+                            state = 'motion';
+                            render();
+                        }
+                        if (e.key === 'ArrowRight' && state === 'motion') {
+                            state = 'scoring';
+                            render();
+                        }
                     });
 
+                    // Start in motion.
+                    state = 'motion';
                     render();
                     return true;
                 }
